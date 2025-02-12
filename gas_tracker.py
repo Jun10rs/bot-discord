@@ -34,9 +34,9 @@ async def fetch_gas_price():
 def get_gwei_indicator(gwei_price, safe_gwei, propose_gwei, fast_gwei):
     if gwei_price >= fast_gwei:
         return "🔴 ↗️"
-    elif gwei_price >= propose_gwei:
-        return "🔵 ➡️"
-    else:
+    elif gwei_price >= safe_gwei:
+        return "🟢 ↘️"
+    #else:
         return "🟢 ↘️"
 
 # 🔹 Função para buscar preço de token na API da Binance

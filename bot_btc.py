@@ -6,12 +6,18 @@ import requests
 import requests_cache
 import asyncio
 from discord import app_commands
+from twitter_commands import TwitterCommands # Importando os Slash Commands
+from twitter_monitor import start_twitter_monitor  # Importando o monitor de tweets
 from dotenv import load_dotenv
 from gas_tracker import add_gas_channel, update_gas_channel
+
 
 # 🔹 Carregar variáveis de ambiente (.env) para manter o token seguro
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN") # O token deve ser armazenado no arquivo .env
+GUILD_ID = int(os.getenv("GUILD_ID"))
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 
 # 🔹 Configuração dos intents (permitindo acesso a mensagens e eventos básicos)
 intents = discord.Intents.default()
@@ -29,7 +35,7 @@ AVAILABLE_TOKENS = ["BTC", "ETH", "XRP", "ADA", "SOL", "DOGE", "AAVE"]
 AVAILABLE_FIAT = ["USDT", "EUR", "BRL"]
 
 # 🔹 Criar sessão de cache para evitar chamadas repetidas à API
-session = requests_cache.CachedSession('crypto_cache', expire_after=340)  # Cache de 340s
+session = requests_cache.CachedSession('crypto_cache', expire_after=350) # Cache de 350s
 
 BASE_URL = "https://api.binance.com/api/v3/ticker/price"
 
@@ -66,7 +72,7 @@ async def update_channel_names():
 
             try:
                 await channel.edit(name=new_channel_name)
-                print(f"✅ Canal atualizado para: {new_channel_name}")
+                print(f"✅ Nome do canal atualizado para: {new_channel_name}")
             except discord.Forbidden:
                 print("❌ Permissão negada para editar o nome do canal.")
             except discord.HTTPException as e:
@@ -97,7 +103,7 @@ async def add_token(interaction: discord.Interaction, token: str, currency: str)
         new_channel_name = f"🟢 ↗️ {token}: ${new_price:,.2f}"
         try:
             await new_channel.edit(name=new_channel_name)
-            print(f"✅ Canal criado para: {new_channel_name}")
+            print(f"✅ Canal criado e atualizado para: {new_channel_name}")
         except discord.Forbidden:
             print("❌ Permissão negada para editar o nome do canal.")
         except discord.HTTPException as e:
@@ -117,15 +123,23 @@ async def add_gas(interaction: discord.Interaction):
 async def on_ready():
     print(f"✅ Bot conectado como {bot.user}")
     try:
+        bot.tree.add_command(TwitterCommands())
         await bot.tree.sync()
         print("✅ Comandos sincronizados com sucesso!")
     except Exception as e:
         print(f"❌ Erro ao sincronizar comandos: {e}")
+    
+    # Inicia o monitoramento dos preços
     if not update_channel_names.is_running():
         update_channel_names.start()
 
+    # Inicia o monitoramento da taxa de gas
     if not update_gas_channel.is_running():
-        update_gas_channel.start(bot)    
+        update_gas_channel.start(bot)
+
+    # Inicia o monitoramento do Twitter junto com os outros eventos
+    if not start_twitter_monitor.is_running():
+        start_twitter_monitor.start(bot)
 
 # 🔹 Rodar o bot
 bot.run(TOKEN)
